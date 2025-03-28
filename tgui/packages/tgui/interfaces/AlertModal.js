@@ -6,7 +6,7 @@
 
 import { Loader } from "./common/Loader";
 import { useBackend } from '../backend';
-import { Component, createRef } from 'inferno';
+import { Component, createRef } from 'react';
 import { Box, Flex, Section } from '../components';
 import { Window } from '../layouts';
 import {

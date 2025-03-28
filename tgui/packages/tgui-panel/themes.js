@@ -22,7 +22,7 @@ let setClientThemeTimer = null;
  * There's no way round it. We're essentially changing the skin by hand.
  * It's painful but it works, and is the way Lummox suggested.
  */
-export const setClientTheme = name => {
+export const setClientTheme = (name) => {
   // Transmit once for fast updates and again in a little while in case we won
   // the race against statbrowser init.
   clearInterval(setClientThemeTimer);
@@ -53,8 +53,6 @@ export const setClientTheme = name => {
       'wiki.text-color': '#000000',
       'forum.background-color': 'none',
       'forum.text-color': '#000000',
-      'discord.background-color': 'none',
-      'discord.text-color': '#000000',
       'github.background-color': 'none',
       'github.text-color': '#000000',
       'report-issue.background-color': 'none',
@@ -99,16 +97,14 @@ export const setClientTheme = name => {
       'mainwindow.background-color': COLOR_DARK_BG,
       'split.background-color': COLOR_DARK_BG,
       // Buttons
-      'changelog.background-color': '#3a3a3a',
+      'changelog.background-color': '#494949',
       'changelog.text-color': COLOR_DARK_TEXT,
-      'rules.background-color': '#3a3a3a',
+      'rules.background-color': '#494949',
       'rules.text-color': COLOR_DARK_TEXT,
-      'wiki.background-color': '#3a3a3a',
+      'wiki.background-color': '#494949',
       'wiki.text-color': COLOR_DARK_TEXT,
-      'forum.background-color': '#3a3a3a',
+      'forum.background-color': '#494949',
       'forum.text-color': COLOR_DARK_TEXT,
-      'discord.background-color': '#3a3a3a',
-      'discord.text-color': COLOR_DARK_TEXT,
       'github.background-color': '#3a3a3a',
       'github.text-color': COLOR_DARK_TEXT,
       'report-issue.background-color': '#492020',
