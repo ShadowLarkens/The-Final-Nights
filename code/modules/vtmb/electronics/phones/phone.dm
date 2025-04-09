@@ -43,7 +43,6 @@
 	var/number
 	var/obj/item/vamp/phone/online
 	var/talking = FALSE
-	var/choosed_number = ""
 	var/last_call = 0
 	var/call_sound = 'code/modules/wod13/sounds/call.ogg'
 	var/can_fold = 1
@@ -115,13 +114,43 @@
 
 	data["online"] = online
 	data["talking"] = talking
-	data["my_number"] = choosed_number
-	data["choosed_number"] = choosed_number
+	data["my_number"] = number
 	if(online)
 		data["calling_user"] = "(+1 707) [online.number]"
 		for(var/datum/phonecontact/P in contacts)
 			if(P.number == online.number)
 				data["calling_user"] = P.name
+
+	data["our_number"] = number
+
+	var/list/published_numbers = list()
+	for(var/i in 1 to min(LAZYLEN(GLOB.published_numbers), LAZYLEN(GLOB.published_number_names)))
+		var/number = GLOB.published_numbers[i]
+		var/name = GLOB.published_number_names[i]
+
+		UNTYPED_LIST_ADD(published_numbers, list(
+			"name" = name,
+			"number" = number,
+		))
+
+	data["published_numbers"] = published_numbers
+
+	var/list/our_contacts = list()
+	for(var/datum/phonecontact/contact in contacts)
+		UNTYPED_LIST_ADD(our_contacts, list(
+			"name" = contact.name,
+			"number" = contact.number,
+		))
+	data["our_contacts"] = our_contacts
+
+
+	var/list/our_blocked_contacts = list()
+	for(var/datum/phonecontact/contact in blocked_contacts)
+		UNTYPED_LIST_ADD(our_blocked_contacts, list(
+			"name" = contact.name,
+			"number" = contact.number,
+		))
+	data["our_blocked_contacts"] = our_blocked_contacts
 
 	return data
 
@@ -131,6 +160,68 @@
 		return
 
 	switch(action)
+		if("publish_number")
+			var/name = tgui_input_text(usr, "Input name", "Publish Number")
+			if(!name || !number)
+				to_chat(usr, span_danger("You must input a name to publish your number."))
+				return
+
+			name = trim(copytext_char(sanitize(name), 1, MAX_MESSAGE_LEN))
+			if(src.number in GLOB.published_numbers)
+				to_chat(usr, span_danger("Error: This number is already published."))
+			else
+				GLOB.published_numbers += src.number
+				GLOB.published_number_names += name
+				to_chat(usr, span_notice("Your number is now published."))
+				for(var/obj/item/vamp/phone/PHN in GLOB.phones_list)
+				//Gather all the Phones in the game to check if they got the toggle for published contacts
+					if(PHN.toggle_published_contacts == TRUE)
+				//If they got it, their published number will be added to those phones
+						var/datum/phonecontact/NEWC = new()
+						var/p_number = src.number
+						NEWC.number = "[p_number]"
+						NEWC.name = "[name]"
+						if(NEWC.number != PHN.number)
+							//Check if it is not your own number that you are adding to contacts
+							var/GOT_CONTACT = FALSE
+							for(var/datum/phonecontact/Contact in PHN.contacts)
+								if(Contact.number == NEWC.number)
+									//Check if the number is not already in your contact list
+									GOT_CONTACT = TRUE
+									break
+							if(!GOT_CONTACT)
+								PHN.contacts += NEWC
+
+		if("add_contact")
+			var/number = params["number"]
+			if(length(number) > 15)
+				to_chat(usr, span_danger("Entered number is too long"))
+				return
+
+			var/stripped_number = replacetext(number, " ", "") // remove spaces
+
+			var/datum/phonecontact/NEWC = new()
+			NEWC.number = "[stripped_number]"
+			contacts += NEWC
+
+			var/new_contact_name = tgui_input_text(usr, "Input name", "Add Contact")
+			if(new_contact_name)
+				NEWC.name = "[new_contact_name]"
+			else
+				var/numbrr = length(contacts)+1
+				NEWC.name = "Contact [numbrr]"
+			. = TRUE
+
+		if("remove_contact")
+			var/name = params["name"]
+
+			for(var/datum/phonecontact/C in contacts)
+				if(C.name == name)
+					contacts -= C
+					break
+
+			. = TRUE
+
 		if("hang")
 			last_call = 0
 			if(talking)
@@ -217,15 +308,19 @@
 
 			.= TRUE
 		if("call")
-			choosed_number = replacetext(choosed_number, " ", "")
+			var/number_to_call = params["number"]
+			if(length(number_to_call) > 15)
+				to_chat(usr, span_danger("Number too long."))
+				return
+			number_to_call = replacetext(number_to_call, " ", "")
 			for(var/obj/item/vamp/phone/PHN in GLOB.phones_list)
 			//Loop through the Phone Global List
-				if(PHN.number == choosed_number)
+				if(PHN.number == number_to_call)
 				// Verify if number wrote actually meets another PHN(Phone number) in the list
 					blocked = FALSE // Not blocked YET.
 					for(var/datum/phonecontact/BlockC in PHN.blocked_contacts)
 					// Loop through the blocked numbers in the PHN Blocked LIST
-						if(BlockC.number == number)
+						if(BlockC.number == number_to_call)
 							// Verify if the caller has their number blocked by the PHN
 							blocked = TRUE
 							// If he is, Blocked is TRUE.
@@ -276,73 +371,28 @@
 							to_chat(usr, "<span class='notice'>Abonent is busy.</span>")
 			if(!online && !blocked)
 			// If the phone is not flipped or the phone user has left the city and they are not blocked.
-				if(choosed_number == "#111")
+				if(number == "#111")
 					call_sound = 'code/modules/wod13/sounds/call.ogg'
 					to_chat(usr, "<span class='notice'>Settings are now reset to default.</span>")
-				else if(choosed_number == "#228")
+				else if(number == "#228")
 					call_sound = 'code/modules/wod13/sounds/nokia.ogg'
 					to_chat(usr, "<span class='notice'>Code activated.</span>")
-				else if(choosed_number == "#666")
+				else if(number == "#666")
 					call_sound = 'sound/mobs/humanoids/human/scream/malescream_6.ogg'
 					to_chat(usr, "<span class='notice'>Code activated.</span>")
-				else if(choosed_number == "#34")
+				else if(number == "#34")
 					if(ishuman(usr))
 						var/mob/living/carbon/human/H = usr
 						H.emote("moan")
 					to_chat(usr, "<span class='notice'>Code activated.</span>")
 				else
 					to_chat(usr, "<span class='notice'>Invalid number.</span>")
-			.= TRUE
+			. = TRUE
 		if("contacts")
-			var/list/options = list("Add","Remove","Choose","Block", "Unblock", "My Number", "Publish Number", "Published Numbers", "Call History", "Delete Call History")
+			var/list/options = list("Add","Remove","Block", "Unblock", "Call History", "Delete Call History")
 			var/option =  tgui_input_list(usr, "Select an option", "Contacts Option", options)
 			var/result
 			switch(option)
-				if("Publish Number")
-					if (!islist(GLOB.published_numbers))
-						GLOB.published_numbers = list()
-					if (!islist(GLOB.published_number_names))
-						GLOB.published_number_names = list()
-
-					var/name = tgui_input_text(usr, "Input name", "Publish Number")
-					if(name && src.number)
-						name = trim(copytext_char(sanitize(name), 1, MAX_MESSAGE_LEN))
-						if(src.number in GLOB.published_numbers)
-							to_chat(usr, "<span class ='notice'>This number is already published.</span>")
-						else
-							GLOB.published_numbers += src.number
-							GLOB.published_number_names += name
-							to_chat(usr, "<span class='notice'>Your number is now published.</span>")
-							for(var/obj/item/vamp/phone/PHN in GLOB.phones_list)
-							//Gather all the Phones in the game to check if they got the toggle for published contacts
-								if(PHN.toggle_published_contacts == TRUE)
-							//If they got it, their published number will be added to those phones
-									var/datum/phonecontact/NEWC = new()
-									var/p_number = src.number
-									NEWC.number = "[p_number]"
-									NEWC.name = "[name]"
-									if(NEWC.number != PHN.number)
-										//Check if it is not your own number that you are adding to contacts
-										var/GOT_CONTACT = FALSE
-										for(var/datum/phonecontact/Contact in PHN.contacts)
-											if(Contact.number == NEWC.number)
-												//Check if the number is not already in your contact list
-												GOT_CONTACT = TRUE
-												break
-										if(!GOT_CONTACT)
-											PHN.contacts += NEWC
-					else
-						to_chat(usr, "<span class='notice'>You must input a name to publish your number.</span>")
-
-				if ("Published Numbers")
-					var/list_length = min(length(GLOB.published_numbers), length(GLOB.published_number_names))
-					for(var/i = 1 to list_length)
-						var/number = GLOB.published_numbers[i]
-						var/display_number_first = copytext(number, 1, 4)
-						var/display_number_second = copytext(number, 4, 8)
-						var/split_number = display_number_first + " " + display_number_second
-						var/name = GLOB.published_number_names[i]
-						to_chat(usr, "- [name]: [split_number]")
 				if("Add")
 					var/new_contact = tgui_input_text(usr, "Input phone number", "Add Contact", null, 15)
 					if(new_contact)
@@ -367,21 +417,6 @@
 							for(var/datum/phonecontact/CNT_REMOVE in contacts)
 								if(CNT_REMOVE.name == result)
 									contacts -= CNT_REMOVE
-				if("Choose")
-					var/list/personal_contacts = list()
-					for(var/datum/phonecontact/CNTCT in contacts)
-						if(CNTCT)
-							personal_contacts += CNTCT.name
-					if(length(personal_contacts) >= 1)
-						result = tgui_input_list(usr, "Select a contact", "Contact Selection", sortList(personal_contacts))
-						if(result)
-							for(var/datum/phonecontact/CNTCT in contacts)
-								if(CNTCT.name == result)
-									if(CNTCT.number == "")
-										CNTCT.check_global_contacts()
-										if(CNTCT.number == "")
-											to_chat(usr, "<span class='notice'>Sorry, [CNTCT.name] does not have a number.</span>")
-									choosed_number = CNTCT.number
 				if("Block")
 					var/block_number = tgui_input_text(usr, "Input phone number", "Block Number")
 					if(block_number)
@@ -489,21 +524,10 @@
 						toggle_published_contacts = FALSE
 						to_chat(usr, "<span class='notice'>The toggle of the published numbers in contacts is disabled.</span>")
 			.= TRUE
-		if("keypad")
+		if("terminal_sound")
 			if(!silence)
 				playsound(loc, 'sound/machines/terminal_select.ogg', 15, TRUE)
-			switch(params["value"])
-				if("C")
-					choosed_number = ""
-					.= TRUE
-					return
-				if("_")
-					choosed_number += " "
-					.= TRUE
-					return
-
-			choosed_number += params["value"]
-			.= TRUE
+			. = TRUE
 
 	return FALSE
 
