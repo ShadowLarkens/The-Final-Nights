@@ -295,9 +295,9 @@ export const ScreenHome = (props: {
           </Stack.Item>
           <Stack.Item>
             <ChromeAppIcon
-              onClick={() => {
-                setApp(NavigableApps.Browser);
-              }}
+            // onClick={() => {
+            //   setApp(NavigableApps.Browser);
+            // }}
             />
           </Stack.Item>
           <Stack.Item>

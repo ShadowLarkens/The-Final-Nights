@@ -29,7 +29,7 @@ export type Data = {
 };
 
 export enum NavigableApps {
-  Browser,
+  // Browser, // TODO: Set up a server wiki that allows iframes
   Phone,
   Recents,
   Contacts,
