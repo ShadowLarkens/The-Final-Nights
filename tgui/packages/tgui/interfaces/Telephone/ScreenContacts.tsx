@@ -6,14 +6,15 @@ import { Contact, Data, NavigableApps } from '.';
 
 const ContactElement = (props: {
   contact: Contact;
-  showDelete?: boolean;
+  deleteIcon?: string | null;
   onClick?: () => void;
+  onDelete?: () => void;
 }) => {
-  const { contact, onClick, showDelete } = props;
+  const { contact, onClick, deleteIcon, onDelete } = props;
   const { act } = useBackend();
 
   return (
-    <Stack align="center" onClick={onClick}>
+    <Stack align="center">
       <Stack.Item grow>
         <Stack
           align="center"
@@ -21,6 +22,7 @@ const ContactElement = (props: {
           pb={1}
           pl={1}
           className="Telephone__ContactsElement"
+          onClick={onClick}
         >
           <Stack.Item>
             <Box
@@ -41,15 +43,15 @@ const ContactElement = (props: {
           </Stack.Item>
         </Stack>
       </Stack.Item>
-      {showDelete && (
+      {deleteIcon ? (
         <Stack.Item
           className="Telephone__ContactsElement"
           mr={1}
-          onClick={() => act('remove_contact', { name: contact.name })}
+          onClick={onDelete}
         >
-          <Icon name="trash" size={1.5} />
+          <Icon name={deleteIcon} size={1.5} />
         </Stack.Item>
-      )}
+      ) : null}
     </Stack>
   );
 };
@@ -116,11 +118,12 @@ export const ScreenContacts = (props: {
             <ContactElement
               contact={contact}
               key={contact.name + contact.number}
-              showDelete
+              deleteIcon="trash"
               onClick={() => {
                 setEnteredNumber(contact.number);
                 setApp(NavigableApps.Phone);
               }}
+              onDelete={() => act('remove_contact', { name: contact.name })}
             />
           ))}
           <Box p={1} backgroundColor="#0003">
@@ -143,10 +146,12 @@ export const ScreenContacts = (props: {
             <ContactElement
               contact={contact}
               key={contact.name + contact.number}
+              deleteIcon="unlock"
               onClick={() => {
                 setEnteredNumber(contact.number);
                 setApp(NavigableApps.Phone);
               }}
+              onDelete={() => act('unblock', { name: contact.name })}
             />
           ))}
         </Stack.Item>

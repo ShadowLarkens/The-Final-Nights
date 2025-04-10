@@ -48,7 +48,6 @@
 	var/can_fold = 1
 	var/interface = "Telephone"
 	var/silence = FALSE
-	var/toggle_published_contacts = FALSE
 	var/list/published_numbers_contacts = list()
 	var/list/phone_history_list = list()
 
@@ -121,6 +120,7 @@
 			if(P.number == online.number)
 				data["calling_user"] = P.name
 
+	data["silence"] = silence
 	data["our_number"] = number
 
 	var/list/published_numbers = list()
@@ -132,7 +132,6 @@
 			"name" = name,
 			"number" = number,
 		))
-
 	data["published_numbers"] = published_numbers
 
 	var/list/our_contacts = list()
@@ -143,7 +142,6 @@
 		))
 	data["our_contacts"] = our_contacts
 
-
 	var/list/our_blocked_contacts = list()
 	for(var/datum/phonecontact/contact in blocked_contacts)
 		UNTYPED_LIST_ADD(our_blocked_contacts, list(
@@ -151,6 +149,16 @@
 			"number" = contact.number,
 		))
 	data["our_blocked_contacts"] = our_blocked_contacts
+
+	var/list/phone_history = list()
+	for(var/datum/phonehistory/PH in phone_history_list)
+		UNTYPED_LIST_ADD(phone_history, list(
+			"type" = PH.call_type,
+			"name" = PH.name,
+			"number" = PH.number,
+			"time" = PH.time
+		))
+	data["phone_history"] = phone_history
 
 	return data
 
@@ -173,24 +181,7 @@
 				GLOB.published_numbers += src.number
 				GLOB.published_number_names += name
 				to_chat(usr, span_notice("Your number is now published."))
-				for(var/obj/item/vamp/phone/PHN in GLOB.phones_list)
-				//Gather all the Phones in the game to check if they got the toggle for published contacts
-					if(PHN.toggle_published_contacts == TRUE)
-				//If they got it, their published number will be added to those phones
-						var/datum/phonecontact/NEWC = new()
-						var/p_number = src.number
-						NEWC.number = "[p_number]"
-						NEWC.name = "[name]"
-						if(NEWC.number != PHN.number)
-							//Check if it is not your own number that you are adding to contacts
-							var/GOT_CONTACT = FALSE
-							for(var/datum/phonecontact/Contact in PHN.contacts)
-								if(Contact.number == NEWC.number)
-									//Check if the number is not already in your contact list
-									GOT_CONTACT = TRUE
-									break
-							if(!GOT_CONTACT)
-								PHN.contacts += NEWC
+			. = TRUE
 
 		if("add_contact")
 			var/number = params["number"]
@@ -222,6 +213,33 @@
 
 			. = TRUE
 
+		if("block")
+			var/block_number = params["number"]
+			if(!block_number)
+				to_chat(usr, span_warning("You must provide a number."))
+			if(length(block_number) > 15)
+				to_chat(usr, span_warning("Invalid number."))
+				return
+
+			var/datum/phonecontact/BlockC = new()
+			block_number = replacetext(block_number, " ", "")
+			BlockC.number = "[block_number]"
+			blocked_contacts += BlockC
+			var/block_contact_name = tgui_input_text(usr, "Input name", "Add name of the Blocked number")
+			if(block_contact_name)
+				BlockC.name = "[block_contact_name]"
+			else
+				var/number = length(blocked_contacts)+1
+				BlockC.name = "Blocked [number]"
+			. = TRUE
+
+		if("unblock")
+			var/result = params["name"]
+			for(var/datum/phonecontact/CNT_UNBLOCK in blocked_contacts)
+				if(CNT_UNBLOCK.name == result)
+					blocked_contacts -= CNT_UNBLOCK
+			. = TRUE
+
 		if("hang")
 			last_call = 0
 			if(talking)
@@ -233,7 +251,8 @@
 					playsound(online, 'code/modules/wod13/sounds/phonestop.ogg', 25, FALSE)
 				online.online = null
 				online = null
-			.= TRUE
+			. = TRUE
+
 		if("accept")
 			if(online)
 				talking = TRUE
@@ -266,7 +285,7 @@
 				NEWH_caller.time = "[SScity_time.timeofnight]"
 				NEWH_caller.call_type = "They accepted the call"
 				online.phone_history_list += NEWH_caller
-			.= TRUE
+			. = TRUE
 		if("decline")
 			talking = FALSE
 			if(online)
@@ -388,142 +407,36 @@
 				else
 					to_chat(usr, "<span class='notice'>Invalid number.</span>")
 			. = TRUE
-		if("contacts")
-			var/list/options = list("Add","Remove","Block", "Unblock", "Call History", "Delete Call History")
-			var/option =  tgui_input_list(usr, "Select an option", "Contacts Option", options)
-			var/result
-			switch(option)
-				if("Add")
-					var/new_contact = tgui_input_text(usr, "Input phone number", "Add Contact", null, 15)
-					if(new_contact)
-						var/datum/phonecontact/NEWC = new()
-						new_contact = replacetext(new_contact, " ", "") //Removes spaces
-						NEWC.number = "[new_contact]"
-						contacts += NEWC
-						var/new_contact_name = tgui_input_text(usr, "Input name", "Add Contact")
-						if(new_contact_name)
-							NEWC.name = "[new_contact_name]"
-						else
-							var/numbrr = length(contacts)+1
-							NEWC.name = "Contact [numbrr]"
-				if("Remove")
-					var/list/removing = list()
-					for(var/datum/phonecontact/CNT_REMOVE in contacts)
-						if(CNT_REMOVE)
-							removing += CNT_REMOVE.name
-					if(length(removing) >= 1)
-						result = tgui_input_list(usr, "Select a contact", "Contact Selection", sortList(removing))
-						if(result)
-							for(var/datum/phonecontact/CNT_REMOVE in contacts)
-								if(CNT_REMOVE.name == result)
-									contacts -= CNT_REMOVE
-				if("Block")
-					var/block_number = tgui_input_text(usr, "Input phone number", "Block Number")
-					if(block_number)
-						var/datum/phonecontact/BlockC = new()
-						block_number = replacetext(block_number, " ", "") //Removes spaces
-						BlockC.number = "[block_number]"
-						blocked_contacts += BlockC
-						var/block_contact_name = tgui_input_text(usr, "Input name", "Add name of the Blocked number")
-						if(block_contact_name)
-							BlockC.name = "[block_contact_name]"
-						else
-							var/number = length(blocked_contacts)+1
-							BlockC.name = "Blocked [number]"
-				if("Unblock")
-					var/list/unblocking = list()
-					for(var/datum/phonecontact/CNT_UNBLOCK in blocked_contacts)
-						if(CNT_UNBLOCK)
-							unblocking += CNT_UNBLOCK.name
-					if(length(unblocking) >= 1)
-						result = tgui_input_list(usr, "Select a blocked number", "Blocked Selection", sortList(unblocking))
-						if(result)
-							for(var/datum/phonecontact/CNT_UNBLOCK in blocked_contacts)
-								if(CNT_UNBLOCK.name == result)
-									blocked_contacts -= CNT_UNBLOCK
-				if("Call History")
-					if(phone_history_list.len > 0)
-						for(var/datum/phonehistory/PH in phone_history_list)
-							//loop through the phone_history_list searching for a phonehistory datums and display them.
-							var/display_number_first = copytext(PH.number, 1, 4)
-							var/display_number_second = copytext(PH.number, 4, 8)
-							var/split_number = display_number_first + " " + display_number_second
-							to_chat(usr, "# [PH.call_type]: [PH.name] , [split_number] at [PH.time]")
-					else
-						to_chat(usr, "You have no call history.") //PSEUDO_M return to fix all this
-				if("Delete Call History")
-					if(phone_history_list.len > 0)
-						to_chat(usr, "Your total amount of history saved is: [phone_history_list.len]")
-						var/number_of_deletions = tgui_input_number(usr, "Input the amount that you want to delete", "Deletion Amount", max_value = length(phone_history_list))
-						//Delete the call history depending on the amount inputed by the User
-						if(number_of_deletions > phone_history_list.len)
-						// Verify if the requested amount in bigger than the history list.
-							to_chat(usr, "You cannot delete more items than the history contains.")
-						else
-							for(var/i = 1 to number_of_deletions)
-								//It will always delete the first item of the list, so the last logs are deleted first
-								var/item_to_remove = phone_history_list[1]
-								phone_history_list -= item_to_remove
-						to_chat(usr, "[number_of_deletions] call history entries were deleted. Remaining: [phone_history_list.len]")
 
-					else
-						to_chat(usr, "You have no call history to delete it.")
-				if("My Number")
-					var/number_first_part = copytext(number, 1, 4)
-					var/number_second_part = copytext(number, 4, 8)
-					to_chat(usr, number_first_part + " " + number_second_part)
-			.= TRUE
-		if("settings")
-			//Wrench Icon, more focused on toggles or later more complex options.
-			var/list/options = list("Notifications and Sounds Toggle", "Published Numbers as Contacts Toggle")
-			var/option =  tgui_input_list(usr, "Select a setting", "Settings Selection", options)
-			switch(option)
-				if("Notifications and Sounds Toggle")
-					if(!silence)
-						//If it is true, it will check all the other sounds for phone and disable them
-						silence = TRUE
-						to_chat(usr, "<span class='notice'>Notifications and Sounds toggled off.</span>")
-					else
-						silence = FALSE
-						to_chat(usr, "<span class='notice'>Notifications and Sounds toggled on.</span>")
-				if ("Published Numbers as Contacts Toggle")
-					if(!toggle_published_contacts)
-						var/contacts_added_lenght = published_numbers_contacts.len
-						var/list_length = min(length(GLOB.published_numbers), length(GLOB.published_number_names))
-						log_admin(contacts_added_lenght)
-						log_admin(list_length)
-						if(contacts_added_lenght < list_length)
-						// checks the size difference between the GLOB published list and the phone published list
-							var/ADDED_CONTACTS = 0
-							to_chat(usr, "<span class='notice'>New contacts are being added to your contact list.</span>")
-							for(var/i = 1 to list_length)
-								var/number_v = GLOB.published_numbers[i]
-								var/name_v = GLOB.published_number_names[i]
-								var/datum/phonecontact/NEWC = new()
-								NEWC.number = "[number_v]"
-								NEWC.name = "[name_v]"
-								if(NEWC.number != number)
-									//Check if it is not your own number that you are adding to contacts
-									var/GOT_CONTACT = FALSE
-									for(var/datum/phonecontact/Contact in contacts)
-									//Check if the number is not already in your contact list
-										if(Contact.number == NEWC.number)
-											GOT_CONTACT = TRUE
-											break
-									if(!GOT_CONTACT)
-										contacts += NEWC
-										published_numbers_contacts += NEWC
-										ADDED_CONTACTS +=1
-							if(ADDED_CONTACTS > 1)
-								to_chat(usr, "<span class='notice'>New contacts are added to your contact list.</span>")
-						else if(contacts_added_lenght == list_length)
-							to_chat(usr, "<span class='notice'>You have all the contacts in the published list already.</span>")
-						toggle_published_contacts = TRUE
-						to_chat(usr, "<span class='notice'>The toggle of the published numbers in contacts is active.</span>")
-					else
-						toggle_published_contacts = FALSE
-						to_chat(usr, "<span class='notice'>The toggle of the published numbers in contacts is disabled.</span>")
-			.= TRUE
+		if("delete_call_history")
+			if(LAZYLEN(phone_history_list) == 0)
+				to_chat(usr, span_danger("You have no call history to delete."))
+				return
+
+			to_chat(usr, "Your total amount of history saved is: [LAZYLEN(phone_history_list)]")
+			var/number_of_deletions = tgui_input_number(usr, "Input the amount that you want to delete", "Deletion Amount", max_value = LAZYLEN(phone_history_list))
+			//Delete the call history depending on the amount inputed by the User
+			if(number_of_deletions > LAZYLEN(phone_history_list))
+			// Verify if the requested amount in bigger than the history list.
+				to_chat(usr, "You cannot delete more items than the history contains.")
+			else
+				for(var/i = 1 to number_of_deletions)
+					//It will always delete the first item of the list, so the last logs are deleted first
+					var/item_to_remove = phone_history_list[1]
+					phone_history_list -= item_to_remove
+			to_chat(usr, "[number_of_deletions] call history entries were deleted. Remaining: [phone_history_list.len]")
+			. = TRUE
+
+		if("silent")
+			if(!silence)
+				//If it is true, it will check all the other sounds for phone and disable them
+				silence = TRUE
+				to_chat(usr, "<span class='notice'>Notifications and Sounds toggled off.</span>")
+			else
+				silence = FALSE
+				to_chat(usr, "<span class='notice'>Notifications and Sounds toggled on.</span>")
+			. = TRUE
+
 		if("terminal_sound")
 			if(!silence)
 				playsound(loc, 'sound/machines/terminal_select.ogg', 15, TRUE)

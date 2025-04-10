@@ -7,11 +7,20 @@ import { BooleanLike } from 'tgui-core/react';
 import { ScreenContacts } from './ScreenContacts';
 import { ScreenHome } from './ScreenHome';
 import { ScreenCalling, ScreenInCall } from './ScreenInCall';
+import { ScreenMessages } from './ScreenMessages';
 import { ScreenPhone } from './ScreenPhone';
+import { ScreenRecents } from './ScreenRecents';
 
 export type Contact = {
   name: string;
   number: string;
+};
+
+export type PhoneHistoryEntry = {
+  type: string;
+  name: string;
+  number: string;
+  time: string;
 };
 
 export type Data = {
@@ -22,10 +31,13 @@ export type Data = {
   choosed_number: string;
   calling_user?: string;
   our_number: string;
+  silence: BooleanLike;
 
   published_numbers: Contact[];
   our_contacts: Contact[];
   our_blocked_contacts: Contact[];
+
+  phone_history: PhoneHistoryEntry[];
 };
 
 export enum NavigableApps {
@@ -71,6 +83,12 @@ const PhysicalScreen = (props: {
         />
       );
     }
+    case NavigableApps.Recents: {
+      return <ScreenRecents />;
+    }
+    case NavigableApps.Messages: {
+      return <ScreenMessages />;
+    }
     default: {
       return <ScreenHome setApp={setApp} />;
     }
@@ -84,12 +102,22 @@ const NavigationBar = (props: {
   const { app, setApp } = props;
 
   let textColor = '#fff';
-  if (app === NavigableApps.Phone || app === NavigableApps.Contacts) {
+  if (
+    app === NavigableApps.Phone ||
+    app === NavigableApps.Contacts ||
+    app === NavigableApps.Recents ||
+    app === NavigableApps.Messages
+  ) {
     textColor = '#000';
   }
 
   let backgroundColor: string | null = null;
-  if (app === NavigableApps.Phone || app === NavigableApps.Contacts) {
+  if (
+    app === NavigableApps.Phone ||
+    app === NavigableApps.Contacts ||
+    app === NavigableApps.Recents ||
+    app === NavigableApps.Messages
+  ) {
     backgroundColor = '#0004';
   }
 
