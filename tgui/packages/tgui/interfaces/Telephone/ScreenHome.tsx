@@ -216,11 +216,11 @@ export const ScreenHome = (props: {
           <Stack.Item>
             <AppIcon
               backgroundColor="#005555"
-              text="IRS"
-              onClick={() => setApp(NavigableApps.IRS)}
+              text="IRC"
+              onClick={() => setApp(NavigableApps.IRC)}
             >
               <Box fontSize={1.2} bold>
-                I R S
+                I R C
               </Box>
             </AppIcon>
           </Stack.Item>

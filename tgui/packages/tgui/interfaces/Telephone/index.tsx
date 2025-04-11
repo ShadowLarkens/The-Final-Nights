@@ -7,6 +7,7 @@ import { BooleanLike } from 'tgui-core/react';
 import { ScreenContacts } from './ScreenContacts';
 import { ScreenHome } from './ScreenHome';
 import { ScreenCalling, ScreenInCall } from './ScreenInCall';
+import { ScreenIRC, ScreenViewingChannel } from './ScreenIRC';
 import { ScreenMessages } from './ScreenMessages';
 import { ScreenPhone } from './ScreenPhone';
 import { ScreenRecents } from './ScreenRecents';
@@ -21,6 +22,31 @@ export type PhoneHistoryEntry = {
   name: string;
   number: string;
   time: string;
+};
+
+export type Comment = {
+  body: string;
+  author: string;
+  time_stamp: string;
+};
+
+export type Message = {
+  body: string;
+  caption: string;
+  author: string;
+  time_stamp: string;
+  comments: Comment[];
+};
+
+export type NewscasterChannel = {
+  censored: BooleanLike;
+  messages: Message[];
+};
+
+export type NewscasterChannelEntry = {
+  name: string;
+  censored: BooleanLike;
+  ref: string;
 };
 
 export type Data = {
@@ -38,6 +64,9 @@ export type Data = {
   our_blocked_contacts: Contact[];
 
   phone_history: PhoneHistoryEntry[];
+
+  newscaster_channels: NewscasterChannelEntry[];
+  viewing_channel: null | NewscasterChannel;
 };
 
 export enum NavigableApps {
@@ -46,7 +75,7 @@ export enum NavigableApps {
   Recents,
   Contacts,
   Messages,
-  IRS,
+  IRC,
 }
 
 const PhysicalScreen = (props: {
@@ -60,6 +89,8 @@ const PhysicalScreen = (props: {
     return <ScreenCalling />;
   } else if (data.online) {
     return <ScreenInCall />;
+  } else if (data.viewing_channel) {
+    return <ScreenViewingChannel setApp={setApp} />;
   }
 
   const [enteredNumber, setEnteredNumber] = useSharedState('enteredNumber', '');
@@ -89,6 +120,9 @@ const PhysicalScreen = (props: {
     case NavigableApps.Messages: {
       return <ScreenMessages />;
     }
+    case NavigableApps.IRC: {
+      return <ScreenIRC />;
+    }
     default: {
       return <ScreenHome setApp={setApp} />;
     }
@@ -99,6 +133,7 @@ const NavigationBar = (props: {
   app: NavigableApps | null;
   setApp: React.Dispatch<React.SetStateAction<NavigableApps | null>>;
 }) => {
+  const { act, data } = useBackend<Data>();
   const { app, setApp } = props;
 
   let textColor = '#fff';
@@ -106,7 +141,9 @@ const NavigationBar = (props: {
     app === NavigableApps.Phone ||
     app === NavigableApps.Contacts ||
     app === NavigableApps.Recents ||
-    app === NavigableApps.Messages
+    app === NavigableApps.Messages ||
+    app === NavigableApps.IRC ||
+    data.viewing_channel
   ) {
     textColor = '#000';
   }
@@ -116,7 +153,9 @@ const NavigationBar = (props: {
     app === NavigableApps.Phone ||
     app === NavigableApps.Contacts ||
     app === NavigableApps.Recents ||
-    app === NavigableApps.Messages
+    app === NavigableApps.Messages ||
+    app === NavigableApps.IRC ||
+    data.viewing_channel
   ) {
     backgroundColor = '#0004';
   }
@@ -136,7 +175,10 @@ const NavigationBar = (props: {
           </Box>
         </Stack.Item>
         <Stack.Item
-          onClick={() => setApp(null)}
+          onClick={() => {
+            act('viewing_newscaster_channel', { ref: null });
+            setApp(null);
+          }}
           className="Telephone__HomeButton"
           width={8}
           height="100%"

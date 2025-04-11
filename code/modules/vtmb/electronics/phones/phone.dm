@@ -50,6 +50,7 @@
 	var/silence = FALSE
 	var/list/published_numbers_contacts = list()
 	var/list/phone_history_list = list()
+	var/viewing_newscaster_channel = ""
 
 	/// Phone icon states
 	var/open_state = "phone2"
@@ -160,6 +161,43 @@
 		))
 	data["phone_history"] = phone_history
 
+	var/list/newscaster_channels = list()
+	for(var/datum/newscaster/feed_channel/CHANNEL in GLOB.news_network.network_channels)
+		UNTYPED_LIST_ADD(newscaster_channels, list(
+			"name" = CHANNEL.channel_name,
+			"censored" = CHANNEL.censored,
+			"ref" = FAST_REF(CHANNEL),
+		))
+	data["newscaster_channels"] = newscaster_channels
+
+	data["viewing_channel"] = null
+	if(viewing_newscaster_channel)
+		var/datum/newscaster/feed_channel/channel = locate(viewing_newscaster_channel)
+		if(istype(channel))
+			var/list/channel_data = list("messages" = list())
+			if(channel.censored)
+				channel_data["censored"] = TRUE
+			else
+				for(var/datum/newscaster/feed_message/MESSAGE in channel.messages)
+					var/list/comments = list()
+
+					for(var/datum/newscaster/feed_comment/comment in MESSAGE.comments)
+						UNTYPED_LIST_ADD(comments, list(
+							"body" = comment.body,
+							"author" = comment.author,
+							"time_stamp" = comment.time_stamp,
+						))
+
+					UNTYPED_LIST_ADD(channel_data["messages"], list(
+						"body" = MESSAGE.returnBody(-1),
+						"caption" = MESSAGE.caption,
+						"author" = MESSAGE.returnAuthor(-1),
+						"time_stamp" = MESSAGE.time_stamp,
+						"comments" = comments,
+					))
+			data["viewing_channel"] = channel_data
+
+
 	return data
 
 /obj/item/vamp/phone/ui_act(action, params)
@@ -181,6 +219,10 @@
 				GLOB.published_numbers += src.number
 				GLOB.published_number_names += name
 				to_chat(usr, span_notice("Your number is now published."))
+			. = TRUE
+
+		if("viewing_newscaster_channel")
+			viewing_newscaster_channel = params["ref"]
 			. = TRUE
 
 		if("add_contact")
